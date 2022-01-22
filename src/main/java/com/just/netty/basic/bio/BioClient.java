@@ -13,7 +13,7 @@ import java.util.Scanner;
  * @version:
  * @modified By:1170370113@qq.com
  */
-public class TimeServerClient2 {
+public class BioClient {
     public static void main(String[] args) {
         int port = 8090;
         Socket socket = null;
