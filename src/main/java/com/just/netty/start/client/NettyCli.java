@@ -63,9 +63,8 @@ public class NettyCli {
 
         @Override
         public void channelActive(ChannelHandlerContext ctx) throws Exception {
-            Console.log("连接上对方：");
-            Scanner scanner = new Scanner(System.in);
-            String res = scanner.nextLine();
+            Console.log("连接上对方：^_^");
+            String res = "我是小李，我上线啦！";
             ctx.writeAndFlush(Unpooled.copiedBuffer(res.getBytes()));
         }
 
