@@ -1,4 +1,4 @@
-package com.just.netty.server;
+package com.just.netty.start.server;
 
 import cn.hutool.core.lang.Console;
 import io.netty.bootstrap.ServerBootstrap;
