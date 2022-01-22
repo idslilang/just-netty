@@ -1,13 +1,16 @@
 package com.just.netty.start.server;
 
 import cn.hutool.core.lang.Console;
+import com.just.netty.start.encoder.FixedLengthFrameEncoder;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.codec.FixedLengthFrameDecoder;
+import io.netty.handler.codec.string.StringDecoder;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
 
 import java.util.Scanner;
 
@@ -19,35 +22,34 @@ import java.util.Scanner;
  * @modified By:1170370113@qq.com
  */
 public class NettySrv {
-    public  void start() {
-        int port =8090;
+    public void start(int port) throws InterruptedException {
         EventLoopGroup bossGroup = new NioEventLoopGroup();
         EventLoopGroup workerGroup = new NioEventLoopGroup();
         try {
             ServerBootstrap bootstrap = new ServerBootstrap();
-
             bootstrap.group(bossGroup, workerGroup)
                     .channel(NioServerSocketChannel.class)
-                    .childHandler(new ChildChannelHandler());
+                    .option(ChannelOption.SO_BACKLOG, 1024)
+                    .handler(new LoggingHandler(LogLevel.INFO))
+                    .childHandler(new ChannelInitializer<SocketChannel>() {
+                        @Override
+                        protected void initChannel(SocketChannel ch) throws Exception {
+                            // 这里将FixedLengthFrameDecoder添加到pipeline中，指定长度为20
+                            ch.pipeline().addLast(new FixedLengthFrameDecoder(1024));
+                            // 将前一步解码得到的数据转码为字符串
+                            ch.pipeline().addLast(new StringDecoder());
+                            // 这里FixedLengthFrameEncoder是我们自定义的，用于将长度不足20的消息进行补全空格
+                            ch.pipeline().addLast(new FixedLengthFrameEncoder(1024));
+                            // 最终的数据处理
+                            ch.pipeline().addLast(new MsgHandler());
+                        }
+                    });
 
             ChannelFuture future = bootstrap.bind(port).sync();
-            //等待服务端口关闭
             future.channel().closeFuture().sync();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }finally {
+        } finally {
             bossGroup.shutdownGracefully();
             workerGroup.shutdownGracefully();
-        }
-    }
-
-    private class ChildChannelHandler extends ChannelInitializer<SocketChannel> {
-
-        @Override
-        protected void initChannel(SocketChannel sc) throws Exception {
-            ChannelPipeline pipeline = sc.pipeline();
-            //处理http消息的编解码
-            pipeline.addLast(new MsgHandler());
         }
     }
 
@@ -56,15 +58,10 @@ public class NettySrv {
 
         @Override
         public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-            ByteBuf byteBuf = (ByteBuf) msg;
-            byte[] bytes = new byte[byteBuf.readableBytes()];
-            byteBuf.readBytes(bytes);
-            String body = new String(bytes,"UTF-8");
-            Console.log("对方发来消息---> msg : {}",body);
-            Console.log("回复请输入：");
+            Console.log(msg);
             Scanner scanner = new Scanner(System.in);
-            String res = scanner.nextLine();
-            ctx.writeAndFlush(Unpooled.copiedBuffer(res.getBytes()));
+            Console.log("请输入回复消息：");
+            ctx.writeAndFlush("server msg:"+scanner.nextLine());
         }
 
 
@@ -77,6 +74,10 @@ public class NettySrv {
 
 
     public static void main(String[] args) {
-        new NettySrv().start();
+        try {
+            new NettySrv().start(8090);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 }
